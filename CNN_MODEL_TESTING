@@ -1,0 +1,242 @@
+****************************************************************************************************************************************************************
+                                                                          VGG16_Testing
+****************************************************************************************************************************************************************
+import tensorflow
+from PIL import Image
+from tensorflow.keras.applications.vgg16 import preprocess_input
+import base64
+from io import BytesIO
+import json
+import random
+import cv2
+from tensorflow.keras.models import load_model
+import numpy as np
+from tensorflow.keras.preprocessing import image
+
+model = load_model('vgg16_face.h5')
+
+face = cv2.imread('face/test/Hari Kumar.R/2.jpg')
+
+if type(face) is np.ndarray:
+    # print("yes")
+    # ResultMap = {0: 'Ashok', 1: 'Hari', 2: 'Thiru'}
+    face = cv2.resize(face, (224, 224))
+
+    im = Image.fromarray(face, 'RGB')
+    # Resizing into 128x128 because we trained the model with this image size.
+    img_array = np.array(im)
+    # Our keras model used a 4D tensor, (images x height x width x channel)
+    # So changing dimension 128x128x3 into 1x128x128x3
+    img_array = np.expand_dims(img_array, axis=0)
+    # print(img_array)
+    pred = model.predict(img_array)
+    print(pred)
+    # print("gfgfg", ResultMap[np.argmax(pred)])
+    
+****************************************************************************************************************************************************************
+                                                        Efficientnet_Testing
+*****************************************************************************************************************************************************************
+
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+import numpy as np
+from numpy import expand_dims
+from matplotlib import pyplot as plt
+import cv2
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
+
+model = load_model('Birds_efficientNet.h5')
+
+img = image.load_img('scissors-hires1_png.rf.b7f86aab3e36b747b67db8fa7368bc17.jpg', target_size=(244, 244))
+# print(img.shape)
+x = image.img_to_array(img)
+x = np.expand_dims(x, axis=0)
+pred = model.predict(x)
+# print(pred)
+res = np.amax(pred)
+print(res)
+fin = np.argmax(pred[0])
+print(fin)
+*****************************************************************************************************************************************************************
+                                                         Without Load Model
+*****************************************************************************************************************************************************************
+
+import random
+import os
+from tensorflow import keras
+from tensorflow.keras import models
+from tensorflow.keras import layers
+from tensorflow.keras import optimizers
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications import EfficientNetB0
+import numpy as np
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+width = 150
+height = 150
+input_shape = (height, width, 3)
+dropout_rate = 0.2
+
+conv_base = EfficientNetB0(weights='imagenet', include_top=False, input_shape=input_shape)
+
+
+model = models.Sequential()
+model.add(conv_base)
+model.add(layers.GlobalMaxPooling2D(name="gap"))
+# model.add(layers.Flatten(name="flatten"))
+if dropout_rate > 0:
+    model.add(layers.Dropout(dropout_rate, name="dropout_out"))
+# model.add(layers.Dense(256, activation='relu', name="fc1"))
+model.add(layers.Dense(3, activation='softmax', name="fc_out"))
+
+
+img_path = "test/rock/rock-hires1_png.rf.7b38054057b744fc4a210351a5cfbc21.jpg"
+img = image.load_img(img_path, target_size=(height, width))
+# Convert it to a Numpy array with target shape.
+x = image.img_to_array(img)
+# Reshape
+x = x.reshape((1,) + x.shape)
+x /= 255.
+result = model.predict([x])[0][0]
+# print(result)
+result_verbose = model.predict([x])
+s = np.argmax(result_verbose)
+print(s)
+if result > 0.5:
+    animal = "cat"
+    print(result_verbose)
+else:
+    animal = "dog"
+    result = 1 - result
+    print(result_verbose)
+
+****************************************************************************************************************************************************************
+                                                          Other Testing
+***************************************************************************************************************************************************************
+
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.models import load_model
+import numpy as np
+from keras.applications.inception_v3 import preprocess_input
+from tensorflow import keras
+from keras.models import load_model
+import efficientnet
+# _ = efficientnet.model.EfficientNetB5() #which ever architecture you trained on, I used B5
+model = load_model('model/model_weights_efficient.h5')
+
+# keras.models.load_model
+model = keras.models.load_model('efficientNet.h5')
+
+img = image.load_img('20.png', target_size=(224, 224))
+x=image.img_to_array(img)
+x=x/255
+x=np.expand_dims(x,axis=0)
+img_data=preprocess_input(x)
+print(img_data.shape)
+model.predict(img_data)
+a=np.argmax(model.predict(img_data), axis=1)
+print(a)
+
+****************************************************************************************************************************************************************
+
+import cv2
+import numpy as np
+from keras.preprocessing import image
+from keras.models import load_model
+
+ResultMap = {0: 'Thiru', 1: 'Ashok'}
+
+classifier = load_model('model.h5')
+# cv2.imread('face/test/thiru/Moorthy5.jpg')
+ImagePath = 'face/test/thiru/Moorthy5.jpg'
+test_image = image.load_img(ImagePath, target_size=(64, 64))
+test_image = image.img_to_array(test_image)
+
+test_image = np.expand_dims(test_image, axis=0)
+
+result = classifier.predict(test_image, verbose=0)
+# print(training_set.class_indices)
+
+print(result)
+
+print('####' * 15)
+print('Prediction is: ', ResultMap[np.argmax(result)])
+print('####' * 15)
+
+***************************************************************************************************************************************************************
+
+from keras.applications.inception_v3 import preprocess_input
+from keras.models import load_model
+import cv2
+import numpy as np
+from PIL import Image
+from keras.preprocessing import image
+
+
+# image = cv2.imread('rond.jpeg')
+# img_size = 100
+model = load_model('model_inception.h5')
+label_dict = {0: 'Covid19 Negative', 1: 'Covid19 Positive', 2: 'sd'}
+# image = Image.open(image)
+
+img = image.load_img('messie.jpg', target_size=(224, 224))
+x=image.img_to_array(img)
+x=x/255
+x=np.expand_dims(x,axis=0)
+img_data=preprocess_input(x)
+print(img_data.shape)
+prediction = model.predict(img_data)
+
+# gray = gray / 255
+# resized = cv2.resize(gray, (img_size, img_size))
+# reshaped = resized.reshape(1, img_size, img_size)
+# prediction = model.predict(reshaped)
+# result = np.argmax(prediction, axis=1)[0]
+print(prediction)
+
+*****************************************************************************************************************************************************************
+                                                          Video_camera_Testing
+*****************************************************************************************************************************************************************
+
+import cv2
+import numpy as np
+from PIL import Image
+from keras import models
+
+#Load the saved model
+model = models.load_model('model.h5')
+video = cv2.VideoCapture(0)
+
+while True:
+        _, frame = video.read()
+
+        #Convert the captured frame into RGB
+        im = Image.fromarray(frame, 'RGB')
+
+        #Resizing into 128x128 because we trained the model with this image size.
+        im = im.resize((128,128))
+        img_array = np.array(im)
+
+        #Our keras model used a 4D tensor, (images x height x width x channel)
+        #So changing dimension 128x128x3 into 1x128x128x3
+        img_array = np.expand_dims(img_array, axis=0)
+
+        #Calling the predict method on model to predict 'me' on the image
+        prediction = int(model.predict(img_array)[0][0])
+
+        prd = model.predict(img_array)
+
+        print(prediction)
+        print(prd)
+
+        #if prediction is 0, which means I am missing on the image, then show the frame in gray color.
+        if prediction == 0:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        cv2.imshow("Capturing", frame)
+        key=cv2.waitKey(1)
+        if key == ord('q'):
+                break
+video.release()
+cv2.destroyAllWindows()

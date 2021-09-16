@@ -1,0 +1,216 @@
+# https://www.youtube.com/watch?v=_xbStNTDZ1o&t=1584s
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras.layers.experimental import preprocessing
+from tensorflow.keras import Sequential
+from tensorflow import expand_dims
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.layers import GlobalAvgPool2D, GlobalAveragePooling2D
+from tensorflow.keras import Input
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras import Model
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+import os
+import numpy as np
+base_dir = 'pins_dataset'
+
+batch_size = 32
+img_size = (244, 244)
+img_shape = (244, 244, 3)
+
+train_ds = image_dataset_from_directory(base_dir + 'train/',
+                                        shuffle=True,
+                                        batch_size=batch_size,
+                                        image_size=img_size)
+
+test_ds = image_dataset_from_directory(base_dir + 'test/',
+                                        shuffle=True,
+                                        batch_size=batch_size,
+                                        image_size=img_size)
+
+val_ds = image_dataset_from_directory(base_dir + 'vaild/',
+                                        shuffle=True,
+                                        batch_size=batch_size,
+                                        image_size=img_size)
+
+data_augmentation = Sequential([
+                                preprocessing.RandomFlip('horizontal'),
+                                preprocessing.RandomRotation(0.2)
+])
+
+
+base_model = EfficientNetB0(include_top=False,
+                            weights='imagenet',
+                            input_shape=img_shape)
+# base_model.summary()
+
+image_batch, label_batch = next(iter(train_ds))
+feature_batch = base_model(image_batch)
+# print(feature_batch.shape)
+#
+print(GlobalAveragePooling2D()(feature_batch).shape)
+
+
+inputs = Input(shape=img_shape)
+x = data_augmentation(inputs)
+x = base_model(x, training=False)
+x = GlobalAveragePooling2D()(x)
+x = Dropout(0.2)(x)
+outputs = Dense(105, activation='softmax')(x)
+model = Model(inputs, outputs)
+
+file_path = 'my_Face_model_105_B7.hdf5'
+
+earlystop = EarlyStopping(
+    monitor='val_accuracy',
+    min_delta=0.001,
+    patience=10,
+    verbose=2,
+    mode='auto'
+)
+checkpoint = ModelCheckpoint(
+    file_path,
+    monitor='val_accuracy',
+    verbose=2,
+    save_best_only=True,
+    mode='max',
+    save_weights_only=False
+)
+callbacks = [checkpoint, earlystop]
+
+
+model.compile(loss=SparseCategoricalCrossentropy(from_logits=False),
+              optimizer=Adam(learning_rate=0.0001),
+              metrics=['accuracy'])
+
+
+model.fit(train_ds, epochs=3,
+          validation_data=val_ds, verbose=1, callbacks=callbacks)
+          
+          
+ **********************************************************************************************************************************************************
+ 
+ # https://colab.research.google.com/drive/1vzEDAX-3ol7gcZ7qmKuwn8zUld524sUZ#scrollTo=vq00KoYUzOSc
+# https://colab.research.google.com/github/Tony607/efficientnet_keras_transfer_learning/blob/master/Keras_efficientnet_transfer_learning.ipynb#scrollTo=rkBE5AZdwLki
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import models
+from tensorflow.keras import layers
+from tensorflow.keras import optimizers
+import os, os.path
+import glob
+import shutil
+import sys
+import numpy as np
+from skimage.io import imread
+from IPython.display import Image
+import matplotlib.pyplot as plt
+
+width = 150
+height = 150
+input_shape = (height, width, 3)
+
+conv_base = EfficientNetB0(weights='imagenet', include_top=False, input_shape=input_shape)
+
+train_dir = 'train/'
+valid_dir = 'valid/'
+test_dir = 'test/'
+batch_size = 4
+
+
+train_datagen = ImageDataGenerator(
+      rescale=1./255)
+
+# Note that the validation data should not be augmented!
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+train_generator = train_datagen.flow_from_directory(
+        # This is the target directory
+        train_dir,
+        # All images will be resized to target height and width.
+        target_size=(height, width),
+        batch_size=batch_size,
+        # Since we use categorical_crossentropy loss, we need categorical labels
+        class_mode='categorical')
+
+validation_generator = test_datagen.flow_from_directory(
+        valid_dir,
+        target_size=(height, width),
+        batch_size=batch_size,
+        class_mode='categorical')
+
+# print(train_generator.class_indices)
+
+epochs = 1
+NUM_TRAIN = sum([len(files) for r, d, files in os.walk(train_dir)])
+print(NUM_TRAIN)
+NUM_TEST = sum([len(files) for r, d, files in os.walk(valid_dir)])
+dropout_rate = 0.2
+
+num_classes = len(os.listdir(train_dir))
+# print('building netowrk for ' + str(num_classes) + ' classes')
+
+model = models.Sequential()
+model.add(conv_base)
+model.add(layers.GlobalMaxPooling2D(name="gap"))
+# model.add(layers.Flatten(name="flatten"))
+if dropout_rate > 0:
+    model.add(layers.Dropout(dropout_rate, name="dropout_out"))
+# model.add(layers.Dense(256, activation='relu', name="fc1"))
+model.add(layers.Dense(3, activation='softmax', name="fc_out"))
+
+
+# model.summary()
+
+print('This is the number of trainable layers '
+      'before freezing the conv base:', len(model.trainable_weights))
+
+conv_base.trainable = False
+
+print('This is the number of trainable layers '
+      'after freezing the conv base:', len(model.trainable_weights))
+
+
+model.compile(loss='categorical_crossentropy',
+              optimizer=optimizers.RMSprop(lr=2e-5),
+              metrics=['acc'])
+
+
+history = model.fit_generator(
+      train_generator,
+      steps_per_epoch= NUM_TRAIN //batch_size,
+      epochs=epochs,
+      validation_data=validation_generator,
+      validation_steps= NUM_TEST //batch_size,
+      verbose=1,
+      use_multiprocessing=True,
+      workers=4)
+
+conv_base.trainable = True
+
+set_trainable = False
+for layer in conv_base.layers:
+    if layer.name == 'multiply_16':
+        set_trainable = True
+    if set_trainable:
+        layer.trainable = True
+    else:
+        layer.trainable = False
+
+model.compile(loss='categorical_crossentropy',
+              optimizer=optimizers.RMSprop(lr=2e-5),
+              metrics=['acc'])
+
+history = model.fit_generator(
+      train_generator,
+      steps_per_epoch=NUM_TRAIN // batch_size,
+      epochs=epochs,
+      validation_data=validation_generator,
+      validation_steps=NUM_TEST // batch_size,
+      verbose=1,
+      use_multiprocessing=True,
+      workers=4)
+
+os.makedirs("models", exist_ok=True)
+model.save('models/efficientNet.h5')
